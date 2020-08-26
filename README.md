@@ -9,4 +9,4 @@
 curl --header "Authorization: key=xxxxx" "http://{{.Host}}/sendMsg?phones=1312xxxxxxx+15600xxxxxx+147939xxxxx&messages=Hello"
 ```
 - 若以无验证密钥的启动方式启动可以省去 <kbd>--header</kbd>参数
-- 其他形式的请求可以将<kbd>phones</kbd参数中的<kbd>+</kbd>号替换成空格
+- 其他形式的请求可以将<kbd>phones</kbd>参数中的<kbd>+</kbd>号替换成空格
