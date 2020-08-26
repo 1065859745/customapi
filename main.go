@@ -89,7 +89,7 @@ func homeTip(w http.ResponseWriter, r *http.Request) {
 
 	const tip = `请求类型: GET
 请求参数: {phones: {类型: string, 是否必须: 是, 备注: 11位手机号}, msg: {类型: string, 是否必须: 是, 备注: 字数小于64}}
-curl请求示例: curl --header "Authorization: key=aaaaa" http://{{.Host}}/sendMsg?phones="1312xxxxxxx 15600xxxxxx 147939xxxxx"&messages="Hello"
+curl请求示例: curl --header "Authorization: key=aaaaa" "http://{{.Host}}/sendMsg?phones=1312xxxxxxx 15600xxxxxx 147939xxxxx&messages=Hello"
 响应示例: {0: 发送成功, 1: 发送失败}`
 	homeTemp := template.Must(template.New("").Parse(tip))
 	var v = struct {
