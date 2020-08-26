@@ -50,7 +50,6 @@ func sendMsg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	phonesArr := strings.Fields(phones)
-	fmt.Println(phonesArr)
 	for i, v := range phonesArr {
 		if matched, _ := regexp.MatchString(`^\d{11}$`, v); !matched {
 			log.Printf(r.Host+" - Phone[%d] is not a 11 digit phone number\n", i)
