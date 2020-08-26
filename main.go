@@ -20,36 +20,39 @@ func sendMsg(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
-	matched, _ := regexp.MatchString(`key=\w+`, authParam)
-	if !matched {
-		log.Println(r.Host + "-Authorized faild")
-		http.Error(w, "Authorized faild", http.StatusUnauthorized)
-		return
+	if *passwd != "" {
+		authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
+		matched, _ := regexp.MatchString(`key=\w+`, authParam)
+		if !matched {
+			log.Println(r.Host + " - Authorized faild")
+			http.Error(w, "Authorized faild", http.StatusUnauthorized)
+			return
+		}
+		// existed key
+		// authorization key
+		if strings.TrimLeft(authParam, "key=") != *passwd {
+			log.Println(r.Host + " - Authorized faild")
+			http.Error(w, "Authorized faild", http.StatusUnauthorized)
+			return
+		}
 	}
-	// existed key
-	// authorization key
-	if strings.TrimLeft(authParam, "key=") != *passwd {
-		log.Println(r.Host + "-Authorized faild")
-		http.Error(w, "Authorized faild", http.StatusUnauthorized)
-		return
-	}
+
 	phones := r.URL.Query().Get("phones")
 	messages := r.URL.Query().Get("messages")
 	if messages == "" || len(messages) >= 64 {
-		log.Println(r.Host + "-Messages is null or more than 65bytes")
+		log.Println(r.Host + " - Messages is null or more than 65bytes")
 		http.Error(w, "Messages is null or more than 65bytes", http.StatusBadRequest)
 		return
 	}
 	if phones == "" {
-		log.Println(r.Host + "-No phones parameters")
+		log.Println(r.Host + " - No phones parameters")
 		http.Error(w, "No phones parameters", http.StatusBadRequest)
 		return
 	}
 	phonesArr := strings.Fields(phones)
 	for i, v := range phonesArr {
-		if matched, _ = regexp.MatchString(`\d{11}`, v); !matched {
-			log.Printf(r.Host+"-Phone[%d] is not a 11 digit phone number\n", i)
+		if matched, _ := regexp.MatchString(`\d{11}`, v); !matched {
+			log.Printf(r.Host+" - Phone[%d] is not a 11 digit phone number\n", i)
 			http.Error(w, "Phone number not a 11 digit", http.StatusBadRequest)
 			return
 		}
@@ -58,7 +61,7 @@ func sendMsg(w http.ResponseWriter, r *http.Request) {
 	cmd := exec.Command("java", "Send", phones)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		log.Println(r.Host + "-Pipe write error")
+		log.Println(r.Host + " - Pipe write error")
 		http.Error(w, "1", http.StatusInternalServerError)
 		return
 	}
@@ -68,7 +71,7 @@ func sendMsg(w http.ResponseWriter, r *http.Request) {
 	})()
 	err = cmd.Run()
 	if err != nil {
-		log.Println(r.Host + "-Excured error")
+		log.Println(r.Host + " - Excured error")
 		http.Error(w, "1", http.StatusInternalServerError)
 		return
 	}
