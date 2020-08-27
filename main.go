@@ -41,8 +41,8 @@ func sendMsg(w http.ResponseWriter, r *http.Request) {
 	phones := r.URL.Query().Get("phones")
 	messages := r.URL.Query().Get("messages")
 	if messages == "" || len(messages) >= 64 {
-		log.Println(r.Host + " - Messages is null or more than 65bytes")
-		http.Error(w, "Messages is null or more than 65bytes", http.StatusBadRequest)
+		log.Println(r.Host + " - Messages is null or more than 64bytes")
+		http.Error(w, "Messages is null or more than 64bytes", http.StatusBadRequest)
 		return
 	}
 	if phones == "" {
