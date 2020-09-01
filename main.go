@@ -17,34 +17,13 @@ var port = flag.String("p", "8018", "Port of serive")
 var passwd = flag.String("P", "", "The password of request authorization in this API")
 
 func sendMsg(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if *passwd != "" {
-		authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
-		matched, _ := regexp.MatchString(`key=\w+`, authParam)
-		if !matched {
-			log.Println(r.Host + " - Authorized faild")
-			http.Error(w, "Authorized faild", http.StatusUnauthorized)
-			return
-		}
-		// existed key
-		// authorization key
-		if strings.TrimLeft(authParam, "key=") != *passwd {
-			log.Println(r.Host + " - Authorized faild")
-			http.Error(w, "Authorized faild", http.StatusUnauthorized)
-			return
-		}
-	}
-
-	phones := r.URL.Query().Get("phones")
 	messages := r.URL.Query().Get("messages")
 	if messages == "" || len(messages) >= 64 {
 		log.Println(r.Host + " - Messages is null or more than 64bytes")
 		http.Error(w, "Messages is null or more than 64bytes", http.StatusBadRequest)
 		return
 	}
+	phones := r.URL.Query().Get("phones")
 	if phones == "" {
 		log.Println(r.Host + " - No phones parameters")
 		http.Error(w, "No phones parameters", http.StatusBadRequest)
@@ -101,9 +80,35 @@ func homeTip(w http.ResponseWriter, r *http.Request) {
 	homeTemp.Execute(w, &v)
 }
 
+func middleWare(f http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if *passwd != "" {
+			authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
+			matched, _ := regexp.MatchString(`key=\w+`, authParam)
+			if !matched {
+				log.Println(r.Host + " - Authorized faild")
+				http.Error(w, "Authorized faild", http.StatusUnauthorized)
+				return
+			}
+			// existed key
+			// authorization key
+			if strings.TrimLeft(authParam, "key=") != *passwd {
+				log.Println(r.Host + " - Authorized faild")
+				http.Error(w, "Authorized faild", http.StatusUnauthorized)
+				return
+			}
+		}
+		f(w, r)
+	}
+}
+
 func main() {
 	flag.Parse()
-	http.HandleFunc("/sendMsg", sendMsg)
+	http.HandleFunc("/sendMsg", middleWare(sendMsg))
 	http.HandleFunc("/", homeTip)
 	log.Println("API service will start at localhost:" + *port)
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
