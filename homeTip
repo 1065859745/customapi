@@ -1,7 +1,7 @@
 {
   "method": "GET",
   "parameter": {"phones": {"type": string, "must": "y", "tip": "11位手机号"}, "messages": {"type": "string", "must": "y", "tip": "字数小于64"}},
-  "response_example": {"0": "发送成功", "1": "发送失败"},
+  "response_example": {"0": "发送成功"},
   "curl_example": 'curl --header "Authorization: key=xxxxx" "http://{{.Host}}/sendMsg?phones=1312xxxxxxx+15600xxxxxx+147939xxxxx&messages=Hello',
   "tip": "",
 }

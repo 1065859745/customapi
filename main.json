@@ -1,0 +1,28 @@
+[
+  {
+    "path": "/sendMsg",
+    "method": "GET",
+    "parameters": [
+      {
+        "name": "phones",
+        "require": true,
+        "Pattern": "^\\d{11}$|^(\\d{11}\\s+)*(\\d{11}\\s+)(\\d{11})$",
+        "tip": "11位联通手机号"
+      },
+      {
+        "name": "messages",
+        "require": true,
+        "Pattern": "\\w+",
+        "tip": "不带空格的字符串"
+      }
+    ],
+    "commands": [
+      "java",
+      "Send",
+      "$phones"
+    ],
+    "stdinPipe": "$messages",
+    "output": false,
+    "pwd": ""
+  }
+]
