@@ -82,7 +82,7 @@ func middleWare(configs *config) http.HandlerFunc {
 			}
 		}
 
-		// Check parameters.
+		// Check request parameters.
 		query := r.URL.Query()
 		for _, v := range configs.Parameters {
 			param := query.Get(v.Name)
@@ -147,7 +147,7 @@ func middleWare(configs *config) http.HandlerFunc {
 
 func achieve(s string, m map[string][]string) string {
 	if vArr := regexp.MustCompile(`\$\w+|\$\{\w+\}`).FindAllString(s, -1); vArr != nil {
-		vArr = slice.DelStrSame(vArr)
+		vArr = slice.DelSameStr(vArr)
 		for _, v := range vArr {
 			vTrim := strings.Trim(v, `${}`)
 			for key, value := range m {
@@ -176,11 +176,18 @@ func main() {
 	for _, v := range configs {
 		// Check commands.
 		if len(v.Commands) == 0 {
-			log.Fatalln("Args of commands was required.")
-			return
+			log.Fatalln("Commands args was required.")
+		}
+		var arr []string
+		for _, v := range v.Parameters {
+			arr = append(arr, v.Name)
+		}
+		if slice.IncludeSameStr(arr) {
+			log.Fatalln("Parameters cannot be the same.")
 		}
 		http.HandleFunc(v.Path, middleWare(&v))
 	}
+
 	http.HandleFunc("/", homeTip)
 	log.Printf("API service will start at localhost:%s.\n", *port)
 	log.Fatalln(http.ListenAndServe(":"+*port, nil))
