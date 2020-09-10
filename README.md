@@ -15,7 +15,7 @@
 |output|可选|boolean|是否输出命令执行结果|false|
 |pwd|可选|string|api的验证密钥||
 ## parameters
-|参数名称|require|参数类型|说明|默认值|
+|参数名称|是否必须|参数类型|说明|默认值|
 |---|---|---|---|---|
 |name|必须|string|请求参数名称||
 |require|可选|boolean|参数是否必须|false|
