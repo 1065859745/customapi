@@ -42,7 +42,7 @@ type homeTip struct {
 }
 
 var port = flag.String("p", "8018", "Port of serive")
-var configFile = flag.String("-config.file", "main.json", "Path of configure file")
+var configFile = flag.String("-config.file", "customapi.json", "Path of configure file")
 var tip []byte
 
 func (c config) createHomeTip() homeTip {
@@ -191,8 +191,9 @@ func achieve(s string, m map[string][]string) string {
 }
 
 func main() {
+	flag.Parse()
 	var configs []config
-	configContent, err := ioutil.ReadFile("main.json")
+	configContent, err := ioutil.ReadFile(*configFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -200,7 +201,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	flag.Parse()
 	var array []homeTip
 	for _, v := range configs {
 		// Check commands.
