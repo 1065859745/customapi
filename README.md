@@ -1,12 +1,23 @@
 # 简介
 公司原来每个程序里都用到一个java类来发送短信，内部共享和使用很不方便。
 于是做了一个http的接口，通过http请求来执行发送短信的程序
-# 程序参数说明
+# 程序参数列表
 - -p 启动程序的端口，默认8018
 - -P 请求时需要的验证密钥，默认为空
-# 请求示例
-```
-curl --header "Authorization: key=xxxxx" "http://{{.Host}}/sendMsg?phones=1312xxxxxxx+15600xxxxxx+147939xxxxx&messages=Hello"
-```
-- 若以无验证密钥的启动方式启动可以省去 <kbd>--header</kbd>参数
-- 其他形式的请求可以将<kbd>phones</kbd>参数中的<kbd>+</kbd>号替换成空格
+# 配置文件参数列表
+|参数名称|是否必须|参数类型|说明|默认值|
+|---|---|---|---|---|
+|path|必须|string|请求路径||
+|method|可选|string|请求方法|GET|
+|parameters|可选|\[\]parameter|请求参数||
+|commands|必须|\[\]string|执行命令||
+|stdinPipe|可选|执行命令后向管道里传递的值||
+|output|可选|boolean|是否输出命令执行结果|false|
+|pwd|可选|string|api的验证密钥||
+## parameters
+|参数名称|require|参数类型|说明|默认值|
+|---|---|---|---|---|
+|name|必须|string|请求参数名称||
+|require|可选|boolean|参数是否必须|false|
+|pattern|可选|string|参数的值需满足的正则表达式||
+|tip|可选|string|参数的提示信息||
