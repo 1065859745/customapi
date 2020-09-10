@@ -27,16 +27,43 @@ type config struct {
 }
 
 type parameter struct {
-	Name    string
-	Require bool
-	Pattern string
-	Tip     string
+	Name    string `json:"name"`
+	Require bool   `json:"require"`
+	Pattern string `json:"pattern"`
+	Tip     string `json:"tip"`
+}
+
+type homeTip struct {
+	Path       string      `json:"path"`
+	Method     string      `json:"method"`
+	Params     []parameter `json:"params"`
+	ResExample string      `json:"resExample"`
+	ReqExample string      `json:"reqExample"`
 }
 
 var port = flag.String("p", "8018", "Port of serive")
 var configFile = flag.String("-config.file", "main.json", "Path of configure file")
+var tip []byte
 
-func homeTip(w http.ResponseWriter, r *http.Request) {
+func (c config) createHomeTip() homeTip {
+	h := homeTip{Path: c.Path, Method: c.Method, Params: c.Parameters, ResExample: "0:success ; 1: failed"}
+	var arr []string
+	for _, v := range h.Params {
+		arr = append(arr, fmt.Sprintf("%s=%s", v.Name, v.Tip))
+	}
+	switch c.Pwd {
+	case "":
+		h.ReqExample = fmt.Sprintf("curl -X %s http://{{.Host}}%s", h.Method, h.Path)
+	default:
+		h.ReqExample = fmt.Sprintf("curl -X %s --header \"Authorization: key=xxxxx\" http://{{.Host}}%s", h.Method, h.Path)
+	}
+	if h.Params != nil {
+		h.ReqExample += fmt.Sprintf("?%s", strings.Join(arr, "&"))
+	}
+	return h
+}
+
+func home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
@@ -46,8 +73,6 @@ func homeTip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-
-	tip, _ := ioutil.ReadFile("homeTip")
 	homeTemp := template.Must(template.New("").Parse(string(tip)))
 	var v = struct {
 		Host string
@@ -58,6 +83,10 @@ func homeTip(w http.ResponseWriter, r *http.Request) {
 }
 
 func middleWare(configs *config) http.HandlerFunc {
+	switch configs.Method {
+	case "":
+		configs.Method = "GET"
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Check method.
 		if r.Method != configs.Method {
@@ -171,13 +200,14 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	flag.Parse()
+	var array []homeTip
 	for _, v := range configs {
 		// Check commands.
-		if len(v.Commands) == 0 {
+		if v.Commands == nil {
 			log.Fatalln("Commands args was required.")
 		}
+
 		var arr []string
 		for _, v := range v.Parameters {
 			arr = append(arr, v.Name)
@@ -185,10 +215,14 @@ func main() {
 		if slice.IncludeSameStr(arr) {
 			log.Fatalln("Parameters cannot be the same.")
 		}
+		array = append(array, v.createHomeTip())
 		http.HandleFunc(v.Path, middleWare(&v))
 	}
-
-	http.HandleFunc("/", homeTip)
+	tip, err = json.Marshal(array)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	http.HandleFunc("/info", home)
 	log.Printf("API service will start at localhost:%s.\n", *port)
 	log.Fatalln(http.ListenAndServe(":"+*port, nil))
 }
