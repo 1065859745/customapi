@@ -207,9 +207,12 @@ func main() {
 		if v.Commands == nil {
 			log.Fatalln("Commands args was required.")
 		}
-
+		// Check config parameter
 		var arr []string
 		for _, v := range v.Parameters {
+			if v.Name == "" {
+				log.Fatalln("The name of parameter cannot be empty.")
+			}
 			arr = append(arr, v.Name)
 		}
 		if slice.IncludeSameStr(arr) {
