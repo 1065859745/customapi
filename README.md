@@ -11,7 +11,7 @@
 |method|可选|string|请求方法|GET|
 |parameters|可选|\[\]parameter|请求参数||
 |commands|必须|\[\]string|执行命令||
-|stdinPipe|可选|执行命令后向管道里传递的值||
+|stdinPipe|可选|string|执行命令后向管道里传递的值||
 |output|可选|boolean|是否输出命令执行结果|false|
 |pwd|可选|string|api的验证密钥||
 ## parameters
