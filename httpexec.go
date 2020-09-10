@@ -98,14 +98,14 @@ func middleWare(configs *config) http.HandlerFunc {
 			authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
 			matched, _ := regexp.MatchString(`key=\w+`, authParam)
 			if !matched {
-				log.Printf("%s - Authorized faild.", r.Host)
+				log.Printf("%s - [ERROR] Authorized faild.", r.RemoteAddr)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
 			}
 			// existed key.
 			// authorization key.
 			if strings.TrimLeft(authParam, "key=") != configs.Pwd {
-				log.Printf("%s - Authorized faild.", r.Host)
+				log.Printf("%s - [ERROR] Authorized faild.", r.RemoteAddr)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
 			}
@@ -123,7 +123,7 @@ func middleWare(configs *config) http.HandlerFunc {
 				break
 			}
 			if matched, _ := regexp.MatchString(v.Pattern, param); !matched {
-				log.Printf("%s %s - Parameter %s error.", r.Host, r.URL.Path, param)
+				log.Printf("%s %s - [ERROR] Parameter %s error.", r.RemoteAddr, r.URL.Path, param)
 				http.Error(w, fmt.Sprintf("Tips of parameter %s: %s", v.Name, v.Tip), http.StatusBadRequest)
 				return
 			}
@@ -138,7 +138,7 @@ func middleWare(configs *config) http.HandlerFunc {
 		if configs.StdinPipe != "" {
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
-				log.Printf("%s %s - Pipe write error.", r.Host, r.URL.Path)
+				log.Printf("%s %s - [ERROR] Pipe write error.", r.RemoteAddr, r.URL.Path)
 				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
@@ -153,7 +153,7 @@ func middleWare(configs *config) http.HandlerFunc {
 		if configs.Output {
 			out, err := cmd.Output()
 			if err != nil {
-				log.Printf("%s %s - Cmd excure error.", r.Host, r.URL.Path)
+				log.Printf("%s %s - [ERROR] Cmd excure error.", r.RemoteAddr, r.URL.Path)
 				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
@@ -165,12 +165,13 @@ func middleWare(configs *config) http.HandlerFunc {
 		} else {
 			err := cmd.Run()
 			if err != nil {
-				log.Printf("%s %s - Cmd excure error.", r.Host, r.URL.Path)
+				log.Printf("%s %s - [ERROR] Cmd excure error.", r.RemoteAddr, r.URL.Path)
 				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
 			io.WriteString(w, "0")
 		}
+		log.Printf("%s %s - %s.", r.RemoteAddr, r.URL.Path, query)
 	}
 }
 
