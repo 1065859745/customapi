@@ -42,7 +42,7 @@ type homeTip struct {
 }
 
 var port = flag.String("p", "8018", "Port of serive")
-var configFile = flag.String("-config.file", "customapi.json", "Path of configure file")
+var configFile = flag.String("-config.file", "httpexec.json", "Path of configuration")
 var tip []byte
 
 func (c config) createHomeTip() homeTip {
@@ -98,14 +98,14 @@ func middleWare(configs *config) http.HandlerFunc {
 			authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
 			matched, _ := regexp.MatchString(`key=\w+`, authParam)
 			if !matched {
-				log.Println(r.Host + " - Authorized faild")
+				log.Printf("%s - Authorized faild.", r.Host)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
 			}
 			// existed key.
 			// authorization key.
 			if strings.TrimLeft(authParam, "key=") != configs.Pwd {
-				log.Println(r.Host + " - Authorized faild")
+				log.Printf("%s - Authorized faild.", r.Host)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
 			}
@@ -123,7 +123,7 @@ func middleWare(configs *config) http.HandlerFunc {
 				break
 			}
 			if matched, _ := regexp.MatchString(v.Pattern, param); !matched {
-				log.Printf("%s %s - Parameter %s error.\n", r.Host, r.URL.Path, param)
+				log.Printf("%s %s - Parameter %s error.", r.Host, r.URL.Path, param)
 				http.Error(w, fmt.Sprintf("Tips of parameter %s: %s", v.Name, v.Tip), http.StatusBadRequest)
 				return
 			}
@@ -138,7 +138,7 @@ func middleWare(configs *config) http.HandlerFunc {
 		if configs.StdinPipe != "" {
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
-				log.Printf("%s %s - Pipe write error", r.Host, r.URL.Path)
+				log.Printf("%s %s - Pipe write error.", r.Host, r.URL.Path)
 				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
@@ -153,7 +153,7 @@ func middleWare(configs *config) http.HandlerFunc {
 		if configs.Output {
 			out, err := cmd.Output()
 			if err != nil {
-				log.Printf("%s %s - Cmd excure error", r.Host, r.URL.Path)
+				log.Printf("%s %s - Cmd excure error.", r.Host, r.URL.Path)
 				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
@@ -165,7 +165,7 @@ func middleWare(configs *config) http.HandlerFunc {
 		} else {
 			err := cmd.Run()
 			if err != nil {
-				log.Printf("%s %s - Cmd excure error", r.Host, r.URL.Path)
+				log.Printf("%s %s - Cmd excure error.", r.Host, r.URL.Path)
 				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
@@ -180,7 +180,6 @@ func achieve(s string, m map[string][]string) string {
 		for _, v := range vArr {
 			vTrim := strings.Trim(v, `${}`)
 			for key, value := range m {
-				fmt.Println(value, value[0])
 				if key == vTrim {
 					s = regexp.MustCompile(regexp.QuoteMeta(v)).ReplaceAllString(s, value[0])
 				}
@@ -202,12 +201,12 @@ func main() {
 		log.Fatalln(err)
 	}
 	var array []homeTip
-	for _, v := range configs {
+	for i, v := range configs {
 		// Check commands.
 		if v.Commands == nil {
 			log.Fatalln("Commands args was required.")
 		}
-		// Check config parameter
+		// Check config parameter.
 		var arr []string
 		for _, v := range v.Parameters {
 			if v.Name == "" {
@@ -219,13 +218,12 @@ func main() {
 			log.Fatalln("Parameters cannot be the same.")
 		}
 		array = append(array, v.createHomeTip())
-		http.HandleFunc(v.Path, middleWare(&v))
+		http.HandleFunc(v.Path, middleWare(&configs[i]))
 	}
-	tip, err = json.Marshal(array)
-	if err != nil {
-		log.Fatalln(err)
+	if tip, err = json.Marshal(array); err != nil {
+		log.Fatal(err)
 	}
 	http.HandleFunc("/info", home)
-	log.Printf("API service will start at localhost:%s.\n", *port)
-	log.Fatalln(http.ListenAndServe(":"+*port, nil))
+	log.Printf("API service will start at localhost:%s.", *port)
+	log.Fatal(http.ListenAndServe(":"+*port, nil))
 }
