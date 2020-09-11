@@ -37,7 +37,6 @@ type homeTip struct {
 	Path       string      `json:"path"`
 	Method     string      `json:"method"`
 	Params     []parameter `json:"params"`
-	ResExample string      `json:"resExample"`
 	ReqExample string      `json:"reqExample"`
 }
 
@@ -46,7 +45,7 @@ var configFile = flag.String("-config.file", "httpexec.json", "Path of configura
 var tip []byte
 
 func (c config) createHomeTip() homeTip {
-	h := homeTip{Path: c.Path, Method: c.Method, Params: c.Parameters, ResExample: "0:success ; 1: failed"}
+	h := homeTip{Path: c.Path, Method: c.Method, Params: c.Parameters}
 	var arr []string
 	for _, v := range h.Params {
 		arr = append(arr, fmt.Sprintf("%s=%s", v.Name, v.Tip))
@@ -98,14 +97,14 @@ func middleWare(configs *config) http.HandlerFunc {
 			authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
 			matched, _ := regexp.MatchString(`key=\w+`, authParam)
 			if !matched {
-				log.Printf("%s - [ERROR] Authorized faild.", r.RemoteAddr)
+				log.Printf("%s [ERROR] Authorized faild", r.RemoteAddr)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
 			}
 			// existed key.
 			// authorization key.
 			if strings.TrimLeft(authParam, "key=") != configs.Pwd {
-				log.Printf("%s - [ERROR] Authorized faild.", r.RemoteAddr)
+				log.Printf("%s [ERROR] Authorized faild", r.RemoteAddr)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
 			}
@@ -123,23 +122,23 @@ func middleWare(configs *config) http.HandlerFunc {
 				break
 			}
 			if matched, _ := regexp.MatchString(v.Pattern, param); !matched {
-				log.Printf("%s %s - [ERROR] Parameter %s error.", r.RemoteAddr, r.URL.Path, param)
+				log.Printf("%s %s [ERROR] Parameter %s error", r.RemoteAddr, r.URL.Path, param)
 				http.Error(w, fmt.Sprintf("Tips of parameter %s: %s", v.Name, v.Tip), http.StatusBadRequest)
 				return
 			}
 		}
-
-		cmd := exec.Command(configs.Commands[0], configs.Commands[1:]...)
+		// Achieve commands.
 		for i, v := range configs.Commands {
 			configs.Commands[i] = achieve(v, query)
 		}
+		cmd := exec.Command(configs.Commands[0], configs.Commands[1:]...)
 
 		// Check pipeline.
 		if configs.StdinPipe != "" {
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
-				log.Printf("%s %s - [ERROR] Pipe write error.", r.RemoteAddr, r.URL.Path)
-				http.Error(w, "1", http.StatusInternalServerError)
+				log.Printf("%s %s [ERROR] Pipe write error", r.RemoteAddr, r.URL.Path)
+				http.Error(w, "Pipe write error", http.StatusInternalServerError)
 				return
 			}
 			configs.StdinPipe = achieve(configs.StdinPipe, query)
@@ -148,30 +147,20 @@ func middleWare(configs *config) http.HandlerFunc {
 				io.WriteString(stdin, configs.StdinPipe)
 			})()
 		}
-
 		// Excure Command.
-		if configs.Output {
-			out, err := cmd.Output()
-			if err != nil {
-				log.Printf("%s %s - [ERROR] Cmd excure error.", r.RemoteAddr, r.URL.Path)
-				http.Error(w, "1", http.StatusInternalServerError)
-				return
-			}
-			if out == nil {
-				io.WriteString(w, "0")
-				return
-			}
-			io.WriteString(w, string(out))
-		} else {
-			err := cmd.Run()
-			if err != nil {
-				log.Printf("%s %s - [ERROR] Cmd excure error.", r.RemoteAddr, r.URL.Path)
-				http.Error(w, "1", http.StatusInternalServerError)
-				return
-			}
-			io.WriteString(w, "0")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("%s %s [ERROR] %s", r.RemoteAddr, r.URL.Path, err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-		log.Printf("%s %s - %s.", r.RemoteAddr, r.URL.Path, query)
+
+		if configs.Output {
+			log.Printf("%s %s %s", r.RemoteAddr, r.URL.Path, query)
+			fmt.Fprintf(w, "%s", out)
+			return
+		}
+		log.Printf("%s %s %s", r.RemoteAddr, r.URL.Path, query)
 	}
 }
 
@@ -202,24 +191,24 @@ func main() {
 		log.Fatalln(err)
 	}
 	var array []homeTip
-	for i, v := range configs {
+	for i, c := range configs {
 		// Check commands.
-		if v.Commands == nil {
+		if c.Commands == nil {
 			log.Fatalln("Commands args was required.")
 		}
 		// Check config parameter.
 		var arr []string
-		for _, v := range v.Parameters {
-			if v.Name == "" {
+		for _, p := range c.Parameters {
+			if p.Name == "" {
 				log.Fatalln("The name of parameter cannot be empty.")
 			}
-			arr = append(arr, v.Name)
+			arr = append(arr, p.Name)
 		}
 		if slice.IncludeSameStr(arr) {
-			log.Fatalln("Parameters cannot be the same.")
+			log.Fatalln("Parameters name cannot be the same.")
 		}
-		array = append(array, v.createHomeTip())
-		http.HandleFunc(v.Path, middleWare(&configs[i]))
+		array = append(array, configs[i].createHomeTip())
+		http.HandleFunc(c.Path, middleWare(&configs[i]))
 	}
 	if tip, err = json.Marshal(array); err != nil {
 		log.Fatal(err)
