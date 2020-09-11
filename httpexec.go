@@ -37,6 +37,7 @@ type homeTip struct {
 	Path       string      `json:"path"`
 	Method     string      `json:"method"`
 	Params     []parameter `json:"params"`
+	ResExample string      `json:"resExample"`
 	ReqExample string      `json:"reqExample"`
 }
 
@@ -45,7 +46,7 @@ var configFile = flag.String("-config.file", "httpexec.json", "Path of configura
 var tip []byte
 
 func (c config) createHomeTip() homeTip {
-	h := homeTip{Path: c.Path, Method: c.Method, Params: c.Parameters}
+	h := homeTip{Path: c.Path, Method: c.Method, Params: c.Parameters, ResExample: "0:success 1:failed"}
 	var arr []string
 	for _, v := range h.Params {
 		arr = append(arr, fmt.Sprintf("%s=%s", v.Name, v.Tip))
@@ -54,19 +55,16 @@ func (c config) createHomeTip() homeTip {
 	case "":
 		h.ReqExample = fmt.Sprintf("curl -X %s http://{{.Host}}%s", h.Method, h.Path)
 	default:
-		h.ReqExample = fmt.Sprintf("curl -X %s --header \"Authorization: key=xxxxx\" http://{{.Host}}%s", h.Method, h.Path)
+		h.ReqExample = fmt.Sprintf("curl -X %s --header \"Authorization: key=xxxxx\" \"http://{{.Host}}%s", h.Method, h.Path)
 	}
 	if h.Params != nil {
 		h.ReqExample += fmt.Sprintf("?%s", strings.Join(arr, "&"))
 	}
+	h.ReqExample += `"`
 	return h
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -81,19 +79,21 @@ func home(w http.ResponseWriter, r *http.Request) {
 	homeTemp.Execute(w, &v)
 }
 
-func middleWare(configs *config) http.HandlerFunc {
-	switch configs.Method {
+func middleWare(conf *config) http.HandlerFunc {
+	switch conf.Method {
 	case "":
-		configs.Method = "GET"
+		conf.Method = "GET"
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
+		commands := conf.Commands
+		pipe := conf.StdinPipe
 		// Check method.
-		if r.Method != configs.Method {
+		if r.Method != conf.Method {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		// Check password.
-		if configs.Pwd != "" {
+		if conf.Pwd != "" {
 			authParam := strings.Trim(fmt.Sprint(r.Header["Authorization"]), "[]")
 			matched, _ := regexp.MatchString(`key=\w+`, authParam)
 			if !matched {
@@ -103,7 +103,7 @@ func middleWare(configs *config) http.HandlerFunc {
 			}
 			// existed key.
 			// authorization key.
-			if strings.TrimLeft(authParam, "key=") != configs.Pwd {
+			if strings.TrimLeft(authParam, "key=") != conf.Pwd {
 				log.Printf("%s [ERROR] Authorized faild", r.RemoteAddr)
 				http.Error(w, "Authorized faild", http.StatusUnauthorized)
 				return
@@ -112,7 +112,7 @@ func middleWare(configs *config) http.HandlerFunc {
 
 		// Check request parameters.
 		query := r.URL.Query()
-		for _, v := range configs.Parameters {
+		for _, v := range conf.Parameters {
 			param := query.Get(v.Name)
 			if param == "" {
 				if v.Require {
@@ -128,38 +128,42 @@ func middleWare(configs *config) http.HandlerFunc {
 			}
 		}
 		// Achieve commands.
-		for i, v := range configs.Commands {
-			configs.Commands[i] = achieve(v, query)
+		for i, v := range commands {
+			commands[i] = achieve(v, query)
 		}
-		cmd := exec.Command(configs.Commands[0], configs.Commands[1:]...)
-
+		cmd := exec.Command(commands[0], commands[1:]...)
 		// Check pipeline.
-		if configs.StdinPipe != "" {
+		if pipe != "" {
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
 				log.Printf("%s %s [ERROR] Pipe write error", r.RemoteAddr, r.URL.Path)
-				http.Error(w, "Pipe write error", http.StatusInternalServerError)
+				http.Error(w, "1", http.StatusInternalServerError)
 				return
 			}
-			configs.StdinPipe = achieve(configs.StdinPipe, query)
+			pipe = achieve(pipe, query)
 			go (func() {
 				defer stdin.Close()
-				io.WriteString(stdin, configs.StdinPipe)
+				io.WriteString(stdin, pipe)
 			})()
 		}
 		// Excure Command.
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Printf("%s %s [ERROR] %s", r.RemoteAddr, r.URL.Path, err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if configs.Output {
+		if conf.Output {
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				log.Printf("%s %s [ERROR] %s", r.RemoteAddr, r.URL.Path, err.Error())
+				http.Error(w, "1", http.StatusInternalServerError)
+				return
+			}
 			log.Printf("%s %s %s", r.RemoteAddr, r.URL.Path, query)
 			fmt.Fprintf(w, "%s", out)
 			return
 		}
+		err := cmd.Start()
+		if err != nil {
+			log.Printf("%s %s Cmd excure error", r.RemoteAddr, r.URL.Path)
+			http.Error(w, "1", http.StatusInternalServerError)
+		}
+		io.WriteString(w, "0")
 		log.Printf("%s %s %s", r.RemoteAddr, r.URL.Path, query)
 	}
 }
@@ -182,11 +186,11 @@ func achieve(s string, m map[string][]string) string {
 func main() {
 	flag.Parse()
 	var configs []config
-	configContent, err := ioutil.ReadFile(*configFile)
+	content, err := ioutil.ReadFile(*configFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = json.Unmarshal(configContent, &configs)
+	err = json.Unmarshal(content, &configs)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -208,7 +212,7 @@ func main() {
 			log.Fatalln("Parameters name cannot be the same.")
 		}
 		array = append(array, configs[i].createHomeTip())
-		http.HandleFunc(c.Path, middleWare(&configs[i]))
+		http.HandleFunc(configs[i].Path, middleWare(&configs[i]))
 	}
 	if tip, err = json.Marshal(array); err != nil {
 		log.Fatal(err)
