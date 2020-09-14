@@ -211,8 +211,8 @@ func main() {
 		if slice.IncludeSameStr(arr) {
 			log.Fatalln("Parameters name cannot be the same.")
 		}
-		array = append(array, configs[i].createHomeTip())
 		http.HandleFunc(configs[i].Path, middleWare(&configs[i]))
+		array = append(array, configs[i].createHomeTip())
 	}
 	if tip, err = json.Marshal(array); err != nil {
 		log.Fatal(err)
