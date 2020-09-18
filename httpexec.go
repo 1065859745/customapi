@@ -230,7 +230,12 @@ func main() {
 		homeTemp.Execute(w, &v)
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
+		b, e := ioutil.ReadFile("index.html")
+		if e != nil {
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+		fmt.Fprintf(w, "%s", b)
 	})
 	log.Printf("API service will start at localhost:%s.", *port)
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
