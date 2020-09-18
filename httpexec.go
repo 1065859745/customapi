@@ -64,21 +64,6 @@ func (c config) createHomeTip() homeTip {
 	return h
 }
 
-func home(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	homeTemp := template.Must(template.New("").Parse(string(tip)))
-	var v = struct {
-		Host string
-	}{
-		r.Host,
-	}
-	homeTemp.Execute(w, &v)
-}
-
 func middleWare(conf *config) http.HandlerFunc {
 	switch conf.Method {
 	case "":
@@ -194,30 +179,59 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	var array []homeTip
+	if configs == nil {
+		log.Fatal("Peales configure httpexec.json")
+	}
+
+	var pathArr []string
+	var homeTipArr []homeTip
 	for i, c := range configs {
+		// Check path, path cannot equal / or /info
+		if c.Path == "/" || c.Path == "/info" {
+			log.Fatal("Path cannot equal / or /info.")
+		}
+		pathArr = append(pathArr, c.Path)
 		// Check commands.
 		if c.Commands == nil {
-			log.Fatalln("Commands args was required.")
+			log.Fatal("Commands args was required.")
 		}
 		// Check config parameter.
 		var arr []string
 		for _, p := range c.Parameters {
 			if p.Name == "" {
-				log.Fatalln("The name of parameter cannot be empty.")
+				log.Fatal("The name of parameter cannot be empty.")
 			}
 			arr = append(arr, p.Name)
 		}
 		if slice.IncludeSameStr(arr) {
-			log.Fatalln("Parameters name cannot be the same.")
+			log.Fatal("Parameters name cannot be the same.")
 		}
-		http.HandleFunc(configs[i].Path, middleWare(&configs[i]))
-		array = append(array, configs[i].createHomeTip())
+		http.HandleFunc(c.Path, middleWare(&configs[i]))
+		homeTipArr = append(homeTipArr, configs[i].createHomeTip())
 	}
-	if tip, err = json.Marshal(array); err != nil {
+	if slice.IncludeSameStr(pathArr) {
+		log.Fatal("Path name cannot be the same.")
+	}
+	if tip, err = json.Marshal(homeTipArr); err != nil {
 		log.Fatal(err)
 	}
-	http.HandleFunc("/info", home)
+	http.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		homeTemp := template.Must(template.New("").Parse(string(tip)))
+		var v = struct {
+			Host string
+		}{
+			r.Host,
+		}
+		homeTemp.Execute(w, &v)
+	})
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+
+	})
 	log.Printf("API service will start at localhost:%s.", *port)
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
 }

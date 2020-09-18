@@ -7,7 +7,7 @@
         "name": "phones",
         "require": true,
         "Pattern": "^\\d{11}$|^(\\d{11}\\s+)*(\\d{11}\\s+)(\\d{11})$",
-        "tip": "11位联通手机号,多个手机号用+连接"
+        "tip": "11位手机号,多个手机号用+连接"
       },
       {
         "name": "messages",
@@ -22,7 +22,6 @@
       "$phones"
     ],
     "stdinPipe": "$messages",
-    "output": false,
     "pwd": ""
   },
   {
