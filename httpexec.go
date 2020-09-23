@@ -193,18 +193,18 @@ func main() {
 		pathArr = append(pathArr, c.Path)
 		// Check commands.
 		if c.Commands == nil {
-			log.Fatal("Commands args was required.")
+			log.Fatalf("Commands args was required in %s.", c.Path)
 		}
-		// Check config parameter.
+		// Check configuration parameter.
 		var arr []string
 		for _, p := range c.Parameters {
 			if p.Name == "" {
-				log.Fatal("The name of parameter cannot be empty.")
+				log.Fatalf("parameter name of %s cannot be empty.", c.Path)
 			}
 			arr = append(arr, p.Name)
 		}
 		if slice.IncludeSameStr(arr) {
-			log.Fatal("Parameters name cannot be the same.")
+			log.Fatalf("Parameters name of %s cannot be the same.", c.Path)
 		}
 		http.HandleFunc(c.Path, middleWare(&configs[i]))
 		homeTipArr = append(homeTipArr, configs[i].createHomeTip())
